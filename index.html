@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Petualangan Logika: Pre-Coding Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #ecfccb; /* Lime-100 */
+            background-image: radial-gradient(#bef264 15%, transparent 16%), radial-gradient(#bef264 15%, transparent 16%);
+            background-size: 40px 40px;
+            background-position: 0 0, 20px 20px;
+        }
+
+        h1, h2, .game-font {
+            font-family: 'Fredoka One', cursive;
+        }
+
+        /* Grid Styles */
+        .grid-cell {
+            transition: all 0.3s ease;
+        }
+
+        /* Player Animation */
+        .player {
+            transition: transform 0.5s ease-in-out, left 0.5s ease-in-out, top 0.5s ease-in-out;
+            position: absolute;
+            z-index: 10;
+        }
+
+        /* Command Blocks */
+        .command-block {
+            transition: all 0.2s;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+        }
+        .command-block:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 rgba(0,0,0,0);
+        }
+
+        /* Queue Animation */
+        .fade-in-up {
+            animation: fadeInUp 0.3s ease-out forwards;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .highlight-exec {
+            border: 4px solid #facc15; /* Yellow-400 */
+            background-color: #fef08a; /* Yellow-200 */
+            transform: scale(1.1);
+            z-index: 20;
+        }
+
+        /* Character Card Selection */
+        .char-card {
+            transition: transform 0.2s, border-color 0.2s;
+            cursor: pointer;
+        }
+        .char-card:hover {
+            transform: scale(1.05);
+            border-color: #4ade80;
+        }
+        .char-card.selected {
+            border-color: #16a34a;
+            background-color: #dcfce7;
+            transform: scale(1.1);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-6 px-4">
+
+    <!-- Screen: Character Selection -->
+    <div id="char-selection-screen" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center p-4">
+        <h1 class="text-4xl text-green-600 mb-2 game-font text-center">Pilih Karaktermu!</h1>
+        <p class="text-gray-500 mb-8 font-bold">Siapa yang mau kamu bantu hari ini?</p>
+        
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 w-full max-w-4xl">
+            <!-- Pilihan 1: Kelinci -->
+            <div onclick="selectChar('rabbit')" id="char-rabbit" class="char-card border-4 border-gray-200 rounded-3xl p-4 flex flex-col items-center gap-2 selected">
+                <div class="text-6xl">🐰</div>
+                <div class="text-2xl">➔</div>
+                <div class="text-4xl">🥕</div>
+                <p class="font-bold text-gray-700 mt-2">Kelinci</p>
+            </div>
+            <!-- Pilihan 2: Anjing -->
+            <div onclick="selectChar('dog')" id="char-dog" class="char-card border-4 border-gray-200 rounded-3xl p-4 flex flex-col items-center gap-2">
+                <div class="text-6xl">🐶</div>
+                <div class="text-2xl">➔</div>
+                <div class="text-4xl">🦴</div>
+                <p class="font-bold text-gray-700 mt-2">Anjing</p>
+            </div>
+            <!-- Pilihan 3: Kucing -->
+            <div onclick="selectChar('cat')" id="char-cat" class="char-card border-4 border-gray-200 rounded-3xl p-4 flex flex-col items-center gap-2">
+                <div class="text-6xl">🐱</div>
+                <div class="text-2xl">➔</div>
+                <div class="text-4xl">🐟</div>
+                <p class="font-bold text-gray-700 mt-2">Kucing</p>
+            </div>
+            <!-- Pilihan 4: Dino -->
+            <div onclick="selectChar('dino')" id="char-dino" class="char-card border-4 border-gray-200 rounded-3xl p-4 flex flex-col items-center gap-2">
+                <div class="text-6xl">🦖</div>
+                <div class="text-2xl">➔</div>
+                <div class="text-4xl">🏃</div>
+                <p class="font-bold text-gray-700 mt-2">Dinosaurus</p>
+            </div>
+        </div>
+
+        <button onclick="startGame()" class="px-10 py-4 bg-green-500 hover:bg-green-600 text-white text-2xl font-bold rounded-full shadow-lg transition transform active:scale-95 game-font">
+            MULAI MAIN ▶️
+        </button>
+    </div>
+
+    <!-- Screen: Main Game -->
+    <div id="game-screen" class="hidden w-full flex-col items-center">
+        <!-- Header -->
+        <header class="text-center mb-6 w-full relative">
+            <button onclick="backToMenu()" class="absolute left-0 top-1 text-sm bg-white px-3 py-1 rounded-full shadow border hover:bg-gray-100">⬅ Ganti Karakter</button>
+            <h1 class="text-3xl sm:text-4xl text-green-700 mb-2 drop-shadow-sm tracking-wide game-font" id="game-title">Petualangan Logika</h1>
+            <p class="text-green-800 font-bold bg-white/80 px-6 py-2 rounded-full inline-block shadow-sm">
+                Level <span id="level-display">1</span> / 50
+            </p>
+        </header>
+
+        <div class="w-full max-w-5xl flex flex-col lg:flex-row gap-8 items-start justify-center">
+            
+            <!-- Kiri: Area Permainan (Grid) -->
+            <div class="relative bg-green-200 p-4 rounded-3xl shadow-xl border-8 border-green-500 mx-auto lg:mx-0">
+                <!-- Grid Container -->
+                <div id="game-grid" class="relative grid grid-cols-5 gap-2 w-[300px] h-[300px] sm:w-[400px] sm:h-[400px]">
+                    <!-- Grid Cells generated by JS -->
+                </div>
+                
+                <!-- Elemen Bergerak (Player) -->
+                <div id="player-token" class="player flex items-center justify-center text-4xl sm:text-5xl" style="width: 20%; height: 20%;">
+                    🐰
+                </div>
+            </div>
+
+            <!-- Kanan: Area Kontrol & Coding -->
+            <div class="flex-1 w-full max-w-md bg-white/90 backdrop-blur rounded-3xl p-6 shadow-xl border-4 border-orange-200 mx-auto lg:mx-0">
+                
+                <!-- Panel Instruksi (D-PAD) -->
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold text-gray-700 mb-4 game-font text-center">1. Pilih Perintah:</h2>
+                    
+                    <div class="grid grid-cols-3 gap-3 justify-items-center max-w-[240px] mx-auto">
+                        <!-- Baris 1 -->
+                        <div></div>
+                        <button onclick="addCommand('forward')" class="command-block bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-xl w-20 h-20 flex flex-col items-center justify-center gap-1">
+                            <span class="text-3xl">⬆️</span>
+                            <span class="text-xs font-bold">Maju</span>
+                        </button>
+                        <div></div>
+
+                        <!-- Baris 2 -->
+                        <button onclick="addCommand('left')" class="command-block bg-purple-500 hover:bg-purple-600 text-white p-2 rounded-xl w-20 h-20 flex flex-col items-center justify-center gap-1">
+                            <span class="text-3xl">⬅️</span>
+                            <span class="text-xs font-bold">Kiri</span>
+                        </button>
+                        <button onclick="addCommand('backward')" class="command-block bg-orange-500 hover:bg-orange-600 text-white p-2 rounded-xl w-20 h-20 flex flex-col items-center justify-center gap-1">
+                            <span class="text-3xl">⬇️</span>
+                            <span class="text-xs font-bold">Mundur</span>
+                        </button>
+                        <button onclick="addCommand('right')" class="command-block bg-pink-500 hover:bg-pink-600 text-white p-2 rounded-xl w-20 h-20 flex flex-col items-center justify-center gap-1">
+                            <span class="text-3xl">➡️</span>
+                            <span class="text-xs font-bold">Kanan</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Panel Urutan Kode -->
+                <div class="mb-6">
+                    <div class="flex justify-between items-end mb-2">
+                        <h2 class="text-xl font-bold text-gray-700 game-font">2. Urutan Langkah:</h2>
+                        <button onclick="clearCommands()" class="text-red-500 text-sm font-bold hover:underline">hapus semua 🗑️</button>
+                    </div>
+                    <div id="command-sequence" class="bg-gray-100 rounded-xl p-4 min-h-[80px] flex flex-wrap gap-2 items-center border-inner border-2 border-gray-200">
+                        <p id="empty-msg" class="text-gray-400 text-sm w-full text-center italic">Belum ada perintah...</p>
+                        <!-- Command icons will appear here -->
+                    </div>
+                </div>
+
+                <!-- Tombol Eksekusi -->
+                <div class="text-center">
+                    <button id="btn-run" onclick="runCode()" class="w-full py-4 bg-green-500 hover:bg-green-600 text-white text-xl font-bold rounded-2xl shadow-[0_6px_0_#15803d] active:shadow-none active:translate-y-[6px] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                        ▶️ JALANKAN!
+                    </button>
+                </div>
+
+                <!-- Pesan Feedback -->
+                <div id="feedback-msg" class="mt-4 text-center font-bold text-lg h-8 text-orange-600"></div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Level Selesai -->
+    <div id="win-modal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50 backdrop-blur-sm">
+        <div class="bg-white p-8 rounded-3xl text-center max-w-sm mx-4 shadow-2xl border-8 border-yellow-400 transform scale-100 animate-bounce-short">
+            <div id="win-icon" class="text-6xl mb-4">🎉</div>
+            <h2 class="text-3xl font-bold text-green-600 mb-2 game-font">Yey! Berhasil!</h2>
+            <p id="win-text" class="text-gray-600 mb-6 font-bold">Target tercapai!</p>
+            <button onclick="nextLevel()" class="px-8 py-3 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold rounded-full shadow-lg text-lg">
+                Level Berikutnya ➡️
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal Game Over / Nabrak -->
+    <div id="lose-modal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50 backdrop-blur-sm">
+        <div class="bg-white p-8 rounded-3xl text-center max-w-sm mx-4 shadow-2xl border-8 border-red-400">
+            <div class="text-6xl mb-4">💥🤕</div>
+            <h2 class="text-3xl font-bold text-red-600 mb-2 game-font">Aduh! Nabrak!</h2>
+            <p class="text-gray-600 mb-6 font-bold">Coba susun ulang perintahnya ya.</p>
+            <button onclick="resetLevel()" class="px-8 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-full shadow-lg text-lg">
+                Coba Lagi 🔄
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- KONFIGURASI GAME ---
+        const GRID_SIZE = 5;
+        const CELL_SIZE_PCT = 20; 
+        const DIRECTIONS = { UP: 0, RIGHT: 1, DOWN: 2, LEFT: 3 };
+
+        // --- DATABASE KARAKTER ---
+        const characters = {
+            rabbit: { name: 'Kelinci', player: '🐰', goal: '🥕', theme: 'Petualangan Kelinci', winMsg: 'Kelinci kenyang makan wortel!' },
+            dog: { name: 'Anjing', player: '🐶', goal: '🦴', theme: 'Petualangan Anjing', winMsg: 'Anjing senang dapat tulang!' },
+            cat: { name: 'Kucing', player: '🐱', goal: '🐟', theme: 'Petualangan Kucing', winMsg: 'Kucing kenyang makan ikan!' },
+            dino: { name: 'Dino', player: '🦖', goal: '🏃', theme: 'Kejar-kejaran Dino', winMsg: 'Hap! Dino menangkapnya!' }
+        };
+
+        let selectedCharId = 'rabbit'; // Default
+
+        // --- STATE LEVEL & GAME ---
+        let currentLevelIdx = 0;
+        let gameState = {
+            x: 0, 
+            y: 0, 
+            dir: 0,
+            commands: [],
+            isRunning: false,
+            currentLevelData: null
+        };
+
+        // --- ELEMEN DOM ---
+        const gridEl = document.getElementById('game-grid');
+        const playerEl = document.getElementById('player-token');
+        const sequenceEl = document.getElementById('command-sequence');
+        const emptyMsgEl = document.getElementById('empty-msg');
+        const runBtn = document.getElementById('btn-run');
+        const feedbackMsg = document.getElementById('feedback-msg');
+        const gameTitleEl = document.getElementById('game-title');
+
+        // --- LOGIKA PEMILIHAN KARAKTER ---
+        function selectChar(id) {
+            selectedCharId = id;
+            // Visual update di menu
+            document.querySelectorAll('.char-card').forEach(el => el.classList.remove('selected'));
+            document.getElementById(`char-${id}`).classList.add('selected');
+        }
+
+        function startGame() {
+            // Sembunyikan menu, tampilkan game
+            document.getElementById('char-selection-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            document.getElementById('game-screen').classList.add('flex');
+            
+            // Set tema
+            const charData = characters[selectedCharId];
+            gameTitleEl.innerText = charData.theme;
+            playerEl.innerText = charData.player;
+
+            // Load Level 1
+            loadLevel(0);
+        }
+
+        function backToMenu() {
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('flex');
+            document.getElementById('char-selection-screen').classList.remove('hidden');
+            
+            // Reset game state
+            currentLevelIdx = 0;
+            gameState.commands = [];
+        }
+
+        // --- GENERATOR LEVEL ---
+        
+        // Level 1-4 (Tutorial Hand-crafted)
+        const tutorialLevels = [
+            { id:1, start: {x:2, y:4, dir:0}, end: {x:2, y:0}, rocks: [] }, // Lurus
+            { id:2, start: {x:1, y:4, dir:0}, end: {x:3, y:2}, rocks: [{x:1, y:2}, {x:1, y:1}, {x:2, y:4}] }, // Belok
+            { id:3, start: {x:0, y:4, dir:0}, end: {x:4, y:0}, rocks: [{x:0, y:3}, {x:1, y:3}, {x:1, y:2}, {x:2, y:2}, {x:2, y:1}, {x:3, y:1}] }, // Zigzag
+            { id:4, start: {x:1, y:4, dir:0}, end: {x:3, y:4}, rocks: [{x:2, y:4}, {x:2, y:3}, {x:2, y:2}, {x:1, y:1}, {x:3, y:1}] } // U-Turn
+        ];
+
+        // Fungsi untuk membuat level acak yang valid (Level 5-50)
+        function generateRandomLevel(levelNum) {
+            // 1. Tentukan Start & End (Jarak minimal agar tidak terlalu mudah)
+            let start, end;
+            do {
+                start = { x: Math.floor(Math.random() * GRID_SIZE), y: Math.floor(Math.random() * GRID_SIZE) };
+                end = { x: Math.floor(Math.random() * GRID_SIZE), y: Math.floor(Math.random() * GRID_SIZE) };
+            } while (Math.abs(start.x - end.x) + Math.abs(start.y - end.y) < 3); // Jarak Manhattan min 3
+
+            // 2. Buat "Jalur Aman" (Solusi) menggunakan Random Walk sederhana agar pasti bisa diselesaikan
+            let path = new Set();
+            let curr = { ...start };
+            path.add(`${curr.x},${curr.y}`);
+            
+            // Bergerak dari start ke end (algoritma bodoh tapi valid: kurangi selisih jarak)
+            while (curr.x !== end.x || curr.y !== end.y) {
+                let moves = [];
+                if (curr.x < end.x) moves.push({dx:1, dy:0});
+                if (curr.x > end.x) moves.push({dx:-1, dy:0});
+                if (curr.y < end.y) moves.push({dx:0, dy:1});
+                if (curr.y > end.y) moves.push({dx:0, dy:-1});
+                
+                // Tambahkan sedikit randomness agar jalur tidak selalu Lurus
+                if (Math.random() > 0.7) {
+                    // Coba gerak acak yang valid dalam grid
+                    const randomMoves = [{dx:1, dy:0}, {dx:-1, dy:0}, {dx:0, dy:1}, {dx:0, dy:-1}];
+                    const rand = randomMoves[Math.floor(Math.random()*randomMoves.length)];
+                    const nextX = curr.x + rand.dx;
+                    const nextY = curr.y + rand.dy;
+                    if (nextX >= 0 && nextX < GRID_SIZE && nextY >= 0 && nextY < GRID_SIZE) {
+                        moves.push(rand);
+                    }
+                }
+
+                if(moves.length === 0) break; // Should not happen given logic
+                const move = moves[Math.floor(Math.random() * moves.length)];
+                curr.x += move.dx;
+                curr.y += move.dy;
+                path.add(`${curr.x},${curr.y}`);
+            }
+
+            // 3. Isi sisa grid dengan batu secara acak (Tingkat kesulitan naik seiring level)
+            let rocks = [];
+            // Densitas batu: Level 5 (10%) -> Level 50 (30%)
+            const rockDensity = 0.1 + (levelNum * 0.004); 
+            
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    const key = `${x},${y}`;
+                    // Jangan taruh batu di start, end, atau jalur solusi
+                    if (!path.has(key) && (x !== start.x || y !== start.y)) {
+                        if (Math.random() < rockDensity) {
+                            rocks.push({x, y});
+                        }
+                    }
+                }
+            }
+
+            // Arah hadap awal acak tapi logis (tidak menghadap tembok batas grid jika mepet)
+            let dir = 0; // Default UP
+            if (start.y === 0) dir = 2; // Kalau di atas, hadap bawah
+            else if (start.y === 4) dir = 0; // Kalau di bawah, hadap atas
+            else if (start.x === 0) dir = 1; // Kalau di kiri, hadap kanan
+            else if (start.x === 4) dir = 3; // Kalau di kanan, hadap kiri
+
+            return {
+                id: levelNum,
+                start: { ...start, dir: dir },
+                end: end,
+                rocks: rocks
+            };
+        }
+
+        // --- FUNGSI LOAD LEVEL UTAMA ---
+        function loadLevel(idx) {
+            // Batas max 50 level
+            if (idx >= 50) {
+                alert("Selamat! Kamu menamatkan semua 50 Level!");
+                idx = 0;
+            }
+            
+            currentLevelIdx = idx;
+            document.getElementById('level-display').innerText = idx + 1;
+
+            // Ambil data level (Tutorial atau Generated)
+            if (idx < 4) {
+                gameState.currentLevelData = tutorialLevels[idx];
+            } else {
+                gameState.currentLevelData = generateRandomLevel(idx + 1);
+            }
+
+            const levelData = gameState.currentLevelData;
+            
+            // Reset State
+            gameState.x = levelData.start.x;
+            gameState.y = levelData.start.y;
+            gameState.dir = levelData.start.dir;
+            gameState.commands = [];
+            gameState.isRunning = false;
+
+            // Reset UI
+            renderGrid(levelData);
+            updatePlayerUI();
+            renderCommands();
+            feedbackMsg.innerText = "";
+            runBtn.disabled = false;
+            
+            // Tutup modal
+            document.getElementById('win-modal').classList.add('hidden');
+            document.getElementById('lose-modal').classList.add('hidden');
+        }
+
+        function renderGrid(levelData) {
+            gridEl.innerHTML = ''; 
+            const charData = characters[selectedCharId];
+
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'grid-cell bg-white/60 rounded-xl flex items-center justify-center text-3xl sm:text-4xl shadow-sm border-2 border-green-300';
+                    
+                    // Render Goal
+                    if (x === levelData.end.x && y === levelData.end.y) {
+                        cell.innerText = charData.goal;
+                        cell.classList.add('bg-orange-100', 'border-orange-300');
+                    }
+
+                    // Render Rocks
+                    if (levelData.rocks.some(r => r.x === x && r.y === y)) {
+                        cell.innerText = '🪨';
+                        cell.classList.add('bg-gray-300', 'border-gray-400');
+                        cell.dataset.type = 'rock'; 
+                    }
+
+                    gridEl.appendChild(cell);
+                }
+            }
+        }
+
+        function updatePlayerUI() {
+            playerEl.style.left = (gameState.x * CELL_SIZE_PCT) + '%';
+            playerEl.style.top = (gameState.y * CELL_SIZE_PCT) + '%';
+            const rotation = gameState.dir * 90;
+            playerEl.style.transform = `rotate(${rotation}deg)`;
+        }
+
+        // --- LOGIKA GAMEPLAY (SAMA SEPERTI SEBELUMNYA) ---
+
+        function addCommand(type) {
+            if (gameState.isRunning) return;
+            if (gameState.commands.length >= 10) {
+                feedbackMsg.innerText = "Maksimal 10 perintah ya!";
+                return;
+            }
+            gameState.commands.push(type);
+            renderCommands();
+            feedbackMsg.innerText = "";
+        }
+
+        function clearCommands() {
+            if (gameState.isRunning) return;
+            gameState.commands = [];
+            renderCommands();
+        }
+
+        function renderCommands() {
+            sequenceEl.innerHTML = '';
+            if (gameState.commands.length === 0) {
+                sequenceEl.appendChild(emptyMsgEl);
+                emptyMsgEl.style.display = 'block';
+                return;
+            } else {
+                emptyMsgEl.style.display = 'none';
+            }
+
+            gameState.commands.forEach((cmd, index) => {
+                const block = document.createElement('div');
+                block.className = `fade-in-up w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold shadow-md select-none text-xl`;
+                block.id = `cmd-${index}`; 
+
+                if (cmd === 'forward') {
+                    block.classList.add('bg-blue-500');
+                    block.innerHTML = '⬆️';
+                } else if (cmd === 'backward') {
+                    block.classList.add('bg-orange-500');
+                    block.innerHTML = '⬇️';
+                } else if (cmd === 'left') {
+                    block.classList.add('bg-purple-500');
+                    block.innerHTML = '⬅️';
+                } else if (cmd === 'right') {
+                    block.classList.add('bg-pink-500');
+                    block.innerHTML = '➡️';
+                }
+                sequenceEl.appendChild(block);
+            });
+        }
+
+        async function runCode() {
+            if (gameState.commands.length === 0) {
+                feedbackMsg.innerText = "Masukkan perintah dulu dong! 😊";
+                return;
+            }
+            gameState.isRunning = true;
+            runBtn.disabled = true;
+            feedbackMsg.innerText = "Sedang jalan...";
+
+            for (let i = 0; i < gameState.commands.length; i++) {
+                highlightCommand(i);
+                const cmd = gameState.commands[i];
+                await executeStep(cmd);
+
+                if (isCollision()) {
+                    showLose();
+                    return; 
+                }
+                if (isWin()) {
+                    showWin();
+                    return;
+                }
+            }
+
+            if (!isWin()) {
+                feedbackMsg.innerText = "Yah, belum sampai. Coba lagi!";
+                setTimeout(() => { resetLevel(); }, 1500);
+            }
+        }
+
+        function highlightCommand(index) {
+            document.querySelectorAll('.highlight-exec').forEach(el => el.classList.remove('highlight-exec'));
+            const el = document.getElementById(`cmd-${index}`);
+            if (el) el.classList.add('highlight-exec');
+        }
+
+        function executeStep(cmd) {
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    if (cmd === 'forward') {
+                        if (gameState.dir === DIRECTIONS.UP) gameState.y--;
+                        else if (gameState.dir === DIRECTIONS.RIGHT) gameState.x++;
+                        else if (gameState.dir === DIRECTIONS.DOWN) gameState.y++;
+                        else if (gameState.dir === DIRECTIONS.LEFT) gameState.x--;
+                    } else if (cmd === 'backward') {
+                        if (gameState.dir === DIRECTIONS.UP) gameState.y++;
+                        else if (gameState.dir === DIRECTIONS.RIGHT) gameState.x--;
+                        else if (gameState.dir === DIRECTIONS.DOWN) gameState.y--;
+                        else if (gameState.dir === DIRECTIONS.LEFT) gameState.x++;
+                    } else if (cmd === 'left') {
+                        gameState.dir = (gameState.dir + 3) % 4;
+                    } else if (cmd === 'right') {
+                        gameState.dir = (gameState.dir + 1) % 4;
+                    }
+                    updatePlayerUI();
+                    resolve();
+                }, 600); 
+            });
+        }
+
+        function isCollision() {
+            if (gameState.x < 0 || gameState.x >= GRID_SIZE || gameState.y < 0 || gameState.y >= GRID_SIZE) {
+                return true;
+            }
+            const levelData = gameState.currentLevelData;
+            const hitRock = levelData.rocks.some(r => r.x === gameState.x && r.y === gameState.y);
+            if (hitRock) return true;
+            return false;
+        }
+
+        function isWin() {
+            const levelData = gameState.currentLevelData;
+            return (gameState.x === levelData.end.x && gameState.y === levelData.end.y);
+        }
+
+        // --- MODAL & FLOW ---
+
+        function showWin() {
+            const charData = characters[selectedCharId];
+            document.getElementById('win-text').innerText = charData.winMsg;
+            document.getElementById('win-icon').innerText = `${charData.player} ❤️ ${charData.goal}`;
+            
+            setTimeout(() => {
+                document.getElementById('win-modal').classList.remove('hidden');
+                confettiEffect(); 
+            }, 500);
+        }
+
+        function showLose() {
+            setTimeout(() => {
+                document.getElementById('lose-modal').classList.remove('hidden');
+            }, 500);
+        }
+
+        function nextLevel() {
+            loadLevel(currentLevelIdx + 1);
+        }
+
+        function resetLevel() {
+            const levelData = gameState.currentLevelData;
+            gameState.x = levelData.start.x;
+            gameState.y = levelData.start.y;
+            gameState.dir = levelData.start.dir;
+            gameState.isRunning = false;
+            updatePlayerUI();
+            document.querySelectorAll('.highlight-exec').forEach(el => el.classList.remove('highlight-exec'));
+            runBtn.disabled = false;
+            feedbackMsg.innerText = "Silakan perbaiki perintahnya.";
+            document.getElementById('lose-modal').classList.add('hidden');
+        }
+
+        function confettiEffect() {
+            const colors = ['#facc15', '#4ade80', '#60a5fa', '#f472b6', '#a78bfa'];
+            for(let i=0; i<40; i++) {
+                const conf = document.createElement('div');
+                conf.className = 'fixed z-50 w-3 h-3 rounded-sm pointer-events-none';
+                conf.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                conf.style.left = Math.random() * 100 + 'vw';
+                conf.style.top = -10 + 'px';
+                document.body.appendChild(conf);
+                const animation = conf.animate([
+                    { transform: `translateY(0) rotate(0)`, opacity: 1 },
+                    { transform: `translateY(100vh) rotate(${Math.random() * 720}deg)`, opacity: 0 }
+                ], {
+                    duration: 1500 + Math.random() * 2000,
+                    easing: 'linear'
+                });
+                animation.onfinish = () => conf.remove();
+            }
+        }
+
+        // Tidak auto-init, menunggu user klik di menu karakter
+    </script>
+</body>
+</html>

@@ -145,8 +145,13 @@
             </div>
 
             <!-- Kanan: Area Kontrol & Coding -->
-            <div class="flex-1 w-full max-w-md bg-white/90 backdrop-blur rounded-3xl p-6 shadow-xl border-4 border-orange-200 mx-auto lg:mx-0">
+            <div class="flex-1 w-full max-w-md bg-white/90 backdrop-blur rounded-3xl p-6 shadow-xl border-4 border-orange-200 mx-auto lg:mx-0 relative">
                 
+                <!-- Tombol Hint -->
+                <button onclick="showHint()" class="absolute top-4 right-4 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold text-xs py-1 px-3 rounded-full shadow border-b-2 border-yellow-600 active:border-b-0 active:translate-y-1 transition">
+                    💡 HINT
+                </button>
+
                 <!-- Panel Instruksi (D-PAD) -->
                 <div class="mb-6">
                     <h2 class="text-xl font-bold text-gray-700 mb-4 game-font text-center">1. Pilih Perintah:</h2>
@@ -222,6 +227,20 @@
             <p class="text-gray-600 mb-6 font-bold">Coba susun ulang perintahnya ya.</p>
             <button onclick="resetLevel()" class="px-8 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-full shadow-lg text-lg">
                 Coba Lagi 🔄
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal Hint -->
+    <div id="hint-modal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-[60] backdrop-blur-sm">
+        <div class="bg-white p-6 rounded-3xl text-center max-w-md mx-4 shadow-2xl border-8 border-blue-400">
+            <h2 class="text-2xl font-bold text-blue-600 mb-4 game-font">💡 Petunjuk Jawaban</h2>
+            <p class="text-gray-600 mb-4 font-bold">Coba urutan ini:</p>
+            <div id="hint-sequence" class="flex flex-wrap justify-center gap-2 mb-6">
+                <!-- Hint icons here -->
+            </div>
+            <button onclick="document.getElementById('hint-modal').classList.add('hidden')" class="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-full shadow-lg">
+                Oke, Mengerti!
             </button>
         </div>
     </div>
@@ -415,6 +434,7 @@
             // Tutup modal
             document.getElementById('win-modal').classList.add('hidden');
             document.getElementById('lose-modal').classList.add('hidden');
+            document.getElementById('hint-modal').classList.add('hidden');
         }
 
         function renderGrid(levelData) {
@@ -449,6 +469,100 @@
             playerEl.style.top = (gameState.y * CELL_SIZE_PCT) + '%';
             const rotation = gameState.dir * 90;
             playerEl.style.transform = `rotate(${rotation}deg)`;
+        }
+
+        // --- LOGIKA HINT / SOLUSI (BFS) ---
+        function showHint() {
+            const solution = solveLevel();
+            if (solution) {
+                const hintContainer = document.getElementById('hint-sequence');
+                hintContainer.innerHTML = '';
+                
+                // Batasi hint maksimal 8 langkah agar tidak terlalu penuh (atau tampilkan semua)
+                const stepsToShow = solution; 
+
+                stepsToShow.forEach(cmd => {
+                    const icon = document.createElement('div');
+                    icon.className = 'w-8 h-8 rounded flex items-center justify-center text-white text-sm font-bold shadow';
+                    
+                    if (cmd === 'forward') { icon.classList.add('bg-blue-500'); icon.innerText = '⬆️'; }
+                    else if (cmd === 'backward') { icon.classList.add('bg-orange-500'); icon.innerText = '⬇️'; }
+                    else if (cmd === 'left') { icon.classList.add('bg-purple-500'); icon.innerText = '⬅️'; }
+                    else if (cmd === 'right') { icon.classList.add('bg-pink-500'); icon.innerText = '➡️'; }
+                    
+                    hintContainer.appendChild(icon);
+                });
+                
+                document.getElementById('hint-modal').classList.remove('hidden');
+            } else {
+                alert("Maaf, tidak dapat menemukan solusi (mungkin level error). Coba reset.");
+            }
+        }
+
+        function solveLevel() {
+            const level = gameState.currentLevelData;
+            // Gunakan BFS untuk mencari urutan perintah terpendek
+            // State: { x, y, dir, cmds }
+            const queue = [{
+                x: level.start.x,
+                y: level.start.y,
+                dir: level.start.dir,
+                cmds: []
+            }];
+            
+            // Keep track visited states (x,y,dir) to avoid cycles
+            const visited = new Set();
+            visited.add(`${level.start.x},${level.start.y},${level.start.dir}`);
+
+            while (queue.length > 0) {
+                const curr = queue.shift();
+
+                // Cek apakah sampai tujuan
+                if (curr.x === level.end.x && curr.y === level.end.y) {
+                    return curr.cmds;
+                }
+
+                // Coba semua 4 perintah
+                const moves = ['forward', 'left', 'right', 'backward'];
+                
+                for (let move of moves) {
+                    let nx = curr.x, ny = curr.y, ndir = curr.dir;
+
+                    if (move === 'forward') {
+                        if (ndir === 0) ny--;
+                        else if (ndir === 1) nx++;
+                        else if (ndir === 2) ny++;
+                        else if (ndir === 3) nx--;
+                    } else if (move === 'backward') {
+                        if (ndir === 0) ny++;
+                        else if (ndir === 1) nx--;
+                        else if (ndir === 2) ny--;
+                        else if (ndir === 3) nx++;
+                    } else if (move === 'left') {
+                        ndir = (ndir + 3) % 4;
+                    } else if (move === 'right') {
+                        ndir = (ndir + 1) % 4;
+                    }
+
+                    // Validasi gerakan (dalam grid & tidak kena batu)
+                    if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
+                        const hitRock = level.rocks.some(r => r.x === nx && r.y === ny);
+                        if (!hitRock) {
+                            const stateKey = `${nx},${ny},${ndir}`;
+                            if (!visited.has(stateKey)) {
+                                visited.add(stateKey);
+                                queue.push({
+                                    x: nx,
+                                    y: ny,
+                                    dir: ndir,
+                                    cmds: [...curr.cmds, move]
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            return null; // Should not happen
         }
 
         // --- LOGIKA GAMEPLAY (SAMA SEPERTI SEBELUMNYA) ---

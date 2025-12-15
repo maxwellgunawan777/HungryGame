@@ -565,13 +565,13 @@
             }
             return null; // Should not happen
         }
-
-        // --- LOGIKA GAMEPLAY (SAMA SEPERTI SEBELUMNYA) ---
+        // --- LOGIKA GAMEPLAY (DENGAN MAX COMMAND YANG DITINGKATKAN) ---
 
         function addCommand(type) {
             if (gameState.isRunning) return;
-            if (gameState.commands.length >= 10) {
-                feedbackMsg.innerText = "Maksimal 10 perintah ya!";
+            // FIX: Menggunakan MAX_COMMANDS (50) bukan angka 10 lagi
+            if (gameState.commands.length >= MAX_COMMANDS) {
+                feedbackMsg.innerText = "Maksimal " + MAX_COMMANDS + " perintah ya!";
                 return;
             }
             gameState.commands.push(type);
